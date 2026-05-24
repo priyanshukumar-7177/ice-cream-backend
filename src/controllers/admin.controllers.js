@@ -889,7 +889,6 @@ const sendTargetedNotification = asyncHandler(async (req, res) => {
 
 export {
         sendOTP,
-        registerAdmin,
         loginAdmin,
         refreshAccessToken,
         logoutAdmin,
