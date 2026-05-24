@@ -37,7 +37,7 @@ router.route("/login").post(loginUser);
 router.route("/profile").get(verifyJWT,loadProfile);
 router.route("/logout").post(verifyJWT,logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
-router.route("/load-items").get(verifyJWT,loadItem);
+router.route("/load-items").get(loadItem);
 router.route("/add-address").post(verifyJWT,addAddress);
 router.route("/delete-address").delete(verifyJWT,deleteAddress);
 router.route("/update-password").post(verifyJWT,updatePassword);
