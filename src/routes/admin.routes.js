@@ -1,7 +1,6 @@
 import { Router } from "express";
 import {
         sendOTP,
-        registerAdmin,
         loginAdmin,
         refreshAccessToken,
         logoutAdmin,
@@ -28,7 +27,6 @@ const router = Router();
 
 
 router.route("/send-otp").post(sendOTP);
-router.route("/register").post(registerAdmin);
 router.route("/login").post(loginAdmin);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/logout").post(AdminVerifyJWT,logoutAdmin);
