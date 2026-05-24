@@ -209,29 +209,29 @@ const logoutAdmin = asyncHandler(async (req, res) => {
 
 
 
-const registerAdmin = asyncHandler(async (req, res) => {
+// const registerAdmin = asyncHandler(async (req, res) => {
 
-    let { email, password } = req.body;
+//     let { email, password } = req.body;
 
-    if (!email || !password)
-        throw new ApiError(400, "Email and password are required");
+//     if (!email || !password)
+//         throw new ApiError(400, "Email and password are required");
 
-    email    = email.trim().toLowerCase();
-    password = await bcrypt.hash(String(password).trim(), 10);
+//     email    = email.trim().toLowerCase();
+//     password = await bcrypt.hash(String(password).trim(), 10);
 
-    // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) throw new ApiError(409, "Admin already exists");
+//     // Check if admin already exists
+//     const existingAdmin = await Admin.findOne({ email });
+//     if (existingAdmin) throw new ApiError(409, "Admin already exists");
 
-    const admin = await Admin.create({ email, password });
+//     const admin = await Admin.create({ email, password });
 
-    const createdAdmin = await Admin.findById(admin._id).select("-refreshToken");
-    if (!createdAdmin) throw new ApiError(500, "Something went wrong while registering admin");
+//     const createdAdmin = await Admin.findById(admin._id).select("-refreshToken");
+//     if (!createdAdmin) throw new ApiError(500, "Something went wrong while registering admin");
 
-    return res
-        .status(201)
-        .json(new ApiResponse(201, createdAdmin, "Admin registered successfully"));
-});
+//     return res
+//         .status(201)
+//         .json(new ApiResponse(201, createdAdmin, "Admin registered successfully"));
+// });
 
 
 
