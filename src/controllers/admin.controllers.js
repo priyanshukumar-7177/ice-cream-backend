@@ -38,94 +38,55 @@ const generateAccessAndRefreshToken = async (adminId) => {
 
 
 
-// const sendOTP = asyncHandler(async (req, res) => {
-
-//     let { email } = req.body;
-
-//     if (!email) throw new ApiError(400, "Email is required");
-
-//     email = email.trim().toLowerCase();
-
-//     // Prevent sending OTP to non-existent admin
-//     const existingAdmin = await Admin.findOne({ email });
-//     if (!existingAdmin) throw new ApiError(404, "Admin not found");
-
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     await redisClient.set(`otp:${email}`, otp, "EX", 300);
-
-//     const transporter = nodemailer.createTransport({
-//         service: "gmail",
-//         auth: {
-//             user: process.env.EMAIL_USER,
-//             pass: process.env.EMAIL_PASS
-//         }
-//     });
-
-//     await transporter.sendMail({
-//         from: process.env.EMAIL_USER,
-//         to: email,
-//         subject: "Your Hindustan IceCream Admin OTP",
-//         text: `Your OTP is ${otp}. It will expire in 5 minutes.`
-//     });
-
-//     res
-//       .status(200)
-//       .json(new ApiResponse(200, null, "OTP sent successfully"));
-// });
-
-
 const sendOTP = asyncHandler(async (req, res) => {
     let { email } = req.body;
+
     if (!email) throw new ApiError(400, "Email is required");
+
     email = email.trim().toLowerCase();
 
-    // 1. Check Admin
-    console.log("1. Checking for admin in DB...");
+    // Prevent sending OTP to non-existent admin
     const existingAdmin = await Admin.findOne({ email });
     if (!existingAdmin) throw new ApiError(404, "Admin not found");
 
+    // Generate and store OTP in Redis
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await redisClient.set(`otp:${email}`, otp, "EX", 300);
 
-    // 2. Try Redis
+    // --- BREVO HTTP API INTEGRATION ---
     try {
-        console.log("2. Attempting to save OTP to Redis...");
-        await redisClient.set(`otp:${email}`, otp, "EX", 300);
-        console.log("-> Successfully saved to Redis!");
-    } catch (error) {
-        console.error("-> REDIS ERROR DETAILS:", error.message);
-        throw new ApiError(500, "Database error: Could not save OTP");
-    }
-
-    // 3. Try Nodemailer
-    try {
-console.log("3. Attempting to send email via Nodemailer...");
-        
-        const transporter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
-            port: 465,
-            secure: true, // true for port 465
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
+        const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "accept": "application/json",
+                "api-key": process.env.BREVO_API_KEY, 
+                "content-type": "application/json"
             },
-            logger: true, // <--- Turns on console logs for Nodemailer
-            debug: true,  // <--- Prints the exact SMTP traffic
-            connectionTimeout: 10000 // Fails after 10 seconds instead of hanging forever
+            body: JSON.stringify({
+                sender: { 
+                    name: "Hindustan IceCream", 
+                    email: process.env.EMAIL_USER // This MUST be your verified sender email in Brevo
+                },
+                to: [{ email: email }],
+                subject: "Your Hindustan IceCream Admin OTP",
+                textContent: `Your OTP is ${otp}. It will expire in 5 minutes.`
+            })
         });
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: "Your Hindustan IceCream Admin OTP",
-            text: `Your OTP is ${otp}. It will expire in 5 minutes.`
-        });
-        console.log("-> Successfully sent email!");
+        if (!brevoResponse.ok) {
+            // If Brevo rejects the request (e.g., bad API key, unverified sender)
+            const errorData = await brevoResponse.json();
+            console.error("Brevo API Error:", errorData);
+            throw new Error("Failed to send email via Brevo");
+        }
     } catch (error) {
-        console.error("-> NODEMAILER ERROR DETAILS:", error.message);
-        throw new ApiError(500, "Email service error: Could not send OTP");
+        console.error("Email sending failed:", error.message);
+        throw new ApiError(500, "Could not send OTP email. Please try again later.");
     }
 
-    res.status(200).json(new ApiResponse(200, null, "OTP sent successfully"));
+    res
+      .status(200)
+      .json(new ApiResponse(200, null, "OTP sent successfully"));
 });
 
 
