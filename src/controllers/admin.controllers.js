@@ -38,39 +38,88 @@ const generateAccessAndRefreshToken = async (adminId) => {
 
 
 
+// const sendOTP = asyncHandler(async (req, res) => {
+
+//     let { email } = req.body;
+
+//     if (!email) throw new ApiError(400, "Email is required");
+
+//     email = email.trim().toLowerCase();
+
+//     // Prevent sending OTP to non-existent admin
+//     const existingAdmin = await Admin.findOne({ email });
+//     if (!existingAdmin) throw new ApiError(404, "Admin not found");
+
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//     await redisClient.set(`otp:${email}`, otp, "EX", 300);
+
+//     const transporter = nodemailer.createTransport({
+//         service: "gmail",
+//         auth: {
+//             user: process.env.EMAIL_USER,
+//             pass: process.env.EMAIL_PASS
+//         }
+//     });
+
+//     await transporter.sendMail({
+//         from: process.env.EMAIL_USER,
+//         to: email,
+//         subject: "Your Hindustan IceCream Admin OTP",
+//         text: `Your OTP is ${otp}. It will expire in 5 minutes.`
+//     });
+
+//     res
+//       .status(200)
+//       .json(new ApiResponse(200, null, "OTP sent successfully"));
+// });
+
+
 const sendOTP = asyncHandler(async (req, res) => {
-
     let { email } = req.body;
-
     if (!email) throw new ApiError(400, "Email is required");
-
     email = email.trim().toLowerCase();
 
-    // Prevent sending OTP to non-existent admin
+    // 1. Check Admin
+    console.log("1. Checking for admin in DB...");
     const existingAdmin = await Admin.findOne({ email });
     if (!existingAdmin) throw new ApiError(404, "Admin not found");
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await redisClient.set(`otp:${email}`, otp, "EX", 300);
 
-    const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
+    // 2. Try Redis
+    try {
+        console.log("2. Attempting to save OTP to Redis...");
+        await redisClient.set(`otp:${email}`, otp, "EX", 300);
+        console.log("-> Successfully saved to Redis!");
+    } catch (error) {
+        console.error("-> REDIS ERROR DETAILS:", error.message);
+        throw new ApiError(500, "Database error: Could not save OTP");
+    }
 
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: "Your Hindustan IceCream Admin OTP",
-        text: `Your OTP is ${otp}. It will expire in 5 minutes.`
-    });
+    // 3. Try Nodemailer
+    try {
+        console.log("3. Attempting to send email via Nodemailer...");
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, null, "OTP sent successfully"));
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Your Hindustan IceCream Admin OTP",
+            text: `Your OTP is ${otp}. It will expire in 5 minutes.`
+        });
+        console.log("-> Successfully sent email!");
+    } catch (error) {
+        console.error("-> NODEMAILER ERROR DETAILS:", error.message);
+        throw new ApiError(500, "Email service error: Could not send OTP");
+    }
+
+    res.status(200).json(new ApiResponse(200, null, "OTP sent successfully"));
 });
 
 
