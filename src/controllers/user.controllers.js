@@ -50,7 +50,7 @@ const sendOTP = asyncHandler(async (req, res) => {
 
     // 1. UPDATED: Check the User collection instead of Admin
     const existingUser = await User.findOne({ email });
-    if (!existingUser) throw new ApiError(404, "User not found");
+    if (existingUser) throw new ApiError(404, "Already User found");
 
     // Generate and store OTP in Redis
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
