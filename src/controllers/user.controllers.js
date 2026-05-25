@@ -41,7 +41,7 @@ const generateAccessAndRefreshToken = async(userId)=>{
 
 
 
-const sendUserOTP = asyncHandler(async (req, res) => {
+const sendOTP = asyncHandler(async (req, res) => {
     let { email } = req.body;
 
     if (!email) throw new ApiError(400, "Email is required");
