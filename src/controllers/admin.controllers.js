@@ -98,13 +98,19 @@ const sendOTP = asyncHandler(async (req, res) => {
 
     // 3. Try Nodemailer
     try {
-        console.log("3. Attempting to send email via Nodemailer...");
+console.log("3. Attempting to send email via Nodemailer...");
+        
         const transporter = nodemailer.createTransport({
-            service: "gmail",
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // true for port 465
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
-            }
+            },
+            logger: true, // <--- Turns on console logs for Nodemailer
+            debug: true,  // <--- Prints the exact SMTP traffic
+            connectionTimeout: 10000 // Fails after 10 seconds instead of hanging forever
         });
 
         await transporter.sendMail({
