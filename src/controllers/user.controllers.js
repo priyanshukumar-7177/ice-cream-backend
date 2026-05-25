@@ -10,7 +10,6 @@ import bcrypt from "bcrypt";
 import { Otp } from "../models/otp.model.js";
 import nodemailer from "nodemailer"; // optional if sending email
 import jwt from "jsonwebtoken";
-import { redisClient } from "../config/redis.js";
 
 
 
@@ -49,15 +48,19 @@ const sendOTP = asyncHandler(async (req, res) => {
 
     email = email.trim().toLowerCase();
 
-    // 1. UPDATED: Check the User collection instead of Admin
+    // Prevent sending OTP to an already registered user
     const existingUser = await User.findOne({ email });
-    if (existingUser) throw new ApiError(404, "Already User found");
+    if (existingUser) throw new ApiError(409, "User already exists");
 
-    // Generate and store OTP in Redis
+    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // 2. UPDATED: Changed the Redis key to 'user-otp:' to avoid mixing up admin and user OTPs
-    await redisClient.set(`user-otp:${email}`, otp, "EX", 300);
+    // Save OTP to MongoDB collection
+    await Otp.findOneAndUpdate(
+        { email }, 
+        { email, otp, createdAt: new Date() }, 
+        { upsert: true }
+    );
 
     // --- BREVO HTTP API INTEGRATION ---
     try {
@@ -71,17 +74,16 @@ const sendOTP = asyncHandler(async (req, res) => {
             body: JSON.stringify({
                 sender: { 
                     name: "Hindustan IceCream", 
-                    email: process.env.EMAIL_USER // This MUST be your verified sender email in Brevo
+                    email: process.env.EMAIL_USER // Your verified Brevo sender email
                 },
                 to: [{ email: email }],
-                // 3. UPDATED: Changed the email subject line
-                subject: "Your Hindustan IceCream Login OTP",
+                subject: "Your Hindustan IceCream OTP",
                 textContent: `Your OTP is ${otp}. It will expire in 5 minutes.`
             })
         });
 
         if (!brevoResponse.ok) {
-            // If Brevo rejects the request (e.g., bad API key, unverified sender)
+            // If Brevo rejects the request
             const errorData = await brevoResponse.json();
             console.error("Brevo API Error:", errorData);
             throw new Error("Failed to send email via Brevo");
