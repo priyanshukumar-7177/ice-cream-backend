@@ -39,20 +39,24 @@ const generateAccessAndRefreshToken = async(userId)=>{
 
 
 
-const sendOTP = asyncHandler(async (req, res) => {
+
+
+const sendUserOTP = asyncHandler(async (req, res) => {
     let { email } = req.body;
 
     if (!email) throw new ApiError(400, "Email is required");
 
     email = email.trim().toLowerCase();
 
-    // Prevent sending OTP to non-existent admin
-    const existingAdmin = await Admin.findOne({ email });
-    if (!existingAdmin) throw new ApiError(404, "Admin not found");
+    // 1. UPDATED: Check the User collection instead of Admin
+    const existingUser = await User.findOne({ email });
+    if (!existingUser) throw new ApiError(404, "User not found");
 
     // Generate and store OTP in Redis
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await redisClient.set(`otp:${email}`, otp, "EX", 300);
+    
+    // 2. UPDATED: Changed the Redis key to 'user-otp:' to avoid mixing up admin and user OTPs
+    await redisClient.set(`user-otp:${email}`, otp, "EX", 300);
 
     // --- BREVO HTTP API INTEGRATION ---
     try {
@@ -69,7 +73,8 @@ const sendOTP = asyncHandler(async (req, res) => {
                     email: process.env.EMAIL_USER // This MUST be your verified sender email in Brevo
                 },
                 to: [{ email: email }],
-                subject: "Your Hindustan IceCream Admin OTP",
+                // 3. UPDATED: Changed the email subject line
+                subject: "Your Hindustan IceCream Login OTP",
                 textContent: `Your OTP is ${otp}. It will expire in 5 minutes.`
             })
         });
