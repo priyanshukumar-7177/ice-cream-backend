@@ -10,6 +10,7 @@ import bcrypt from "bcrypt";
 import { Otp } from "../models/otp.model.js";
 import nodemailer from "nodemailer"; // optional if sending email
 import jwt from "jsonwebtoken";
+import { redisClient } from "../config/redis.js";
 
 
 
